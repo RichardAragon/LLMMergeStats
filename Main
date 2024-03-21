@@ -1,0 +1,107 @@
+from transformers import AutoConfig, AutoModel, AutoTokenizer
+import torch
+import matplotlib.pyplot as plt
+import time
+
+def compare_architectures(model1_name, model2_name):
+    config1 = AutoConfig.from_pretrained(model1_name)
+    config2 = AutoConfig.from_pretrained(model2_name)
+    print(f"Model architectures are {'the same' if config1.model_type == config2.model_type else 'different'}.")
+    print(f"Model 1: {config1.model_type}, Model 2: {config2.model_type}")
+    print(f"Number of layers - {model1_name}: {config1.num_hidden_layers}, {model2_name}: {config2.num_hidden_layers}")
+    print(f"Hidden size - {model1_name}: {config1.hidden_size}, {model2_name}: {config2.hidden_size}")
+
+def compare_activation_functions(model1_name, model2_name):
+    config1 = AutoConfig.from_pretrained(model1_name)
+    config2 = AutoConfig.from_pretrained(model2_name)
+    activation1 = getattr(config1, 'hidden_act', 'Not specified')
+    activation2 = getattr(config2, 'hidden_act', 'Not specified')
+    print(f"Activation functions - {model1_name}: {activation1}, {model2_name}: {activation2}")
+
+def compare_vocab_sizes(model1_name, model2_name):
+    tokenizer1 = AutoTokenizer.from_pretrained(model1_name)
+    tokenizer2 = AutoTokenizer.from_pretrained(model2_name)
+    vocab1 = set(tokenizer1.vocab.keys())
+    vocab2 = set(tokenizer2.vocab.keys())
+    vocab_size1, vocab_size2 = len(vocab1), len(vocab2)
+    vocab_overlap = len(vocab1 & vocab2)
+    print(f"Vocabulary size - {model1_name}: {vocab_size1}, {model2_name}: {vocab_size2}")
+    print(f"Vocabulary overlap: {vocab_overlap}")
+    print(f"Unique tokens in {model1_name}: {len(vocab1 - vocab2)}")
+    print(f"Unique tokens in {model2_name}: {len(vocab2 - vocab1)}")
+
+def compare_parameter_counts(model1_name, model2_name):
+    model1, model2 = AutoModel.from_pretrained(model1_name), AutoModel.from_pretrained(model2_name)
+    param_count1, param_count2 = sum(p.numel() for p in model1.parameters()), sum(p.numel() for p in model2.parameters())
+    print(f"Parameter count - {model1_name}: {param_count1:,}, {model2_name}: {param_count2:,}")
+    print(f"{model1_name} has {param_count1 / param_count2:.2f} times more parameters than {model2_name}" if param_count1 > param_count2 else f"{model2_name} has {param_count2 / param_count1:.2f} times more parameters than {model1_name}")
+
+def compare_inference_speed(model1_name, model2_name, num_iterations=10):
+    model1, model2 = AutoModel.from_pretrained(model1_name), AutoModel.from_pretrained(model2_name)
+    tokenizer1, tokenizer2 = AutoTokenizer.from_pretrained(model1_name), AutoTokenizer.from_pretrained(model2_name)
+    
+    start_time = time.time()
+    for _ in range(num_iterations):
+        inputs = tokenizer1("This is a test sentence", return_tensors="pt")
+        model1(**inputs)
+    time1 = (time.time() - start_time) / num_iterations
+    
+    start_time = time.time()
+    for _ in range(num_iterations):
+        inputs = tokenizer2("This is a test sentence", return_tensors="pt")
+        model2(**inputs)
+    time2 = (time.time() - start_time) / num_iterations
+    
+    print(f"Average inference time - {model1_name}: {time1:.6f} seconds, {model2_name}: {time2:.6f} seconds")
+
+def visualize_layer_sizes(model1_name, model2_name):
+    config1 = AutoConfig.from_pretrained(model1_name)
+    config2 = AutoConfig.from_pretrained(model2_name)
+    
+    layers1 = list(range(1, config1.num_hidden_layers + 1))
+    layers2 = list(range(1, config2.num_hidden_layers + 1))
+    hidden_sizes1 = [config1.hidden_size] * config1.num_hidden_layers
+    hidden_sizes2 = [config2.hidden_size] * config2.num_hidden_layers
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(layers1, hidden_sizes1, marker='o', label=model1_name)
+    plt.plot(layers2, hidden_sizes2, marker='o', label=model2_name)
+    plt.xlabel("Layer")
+    plt.ylabel("Hidden Size")
+    plt.title("Layer-wise Hidden Sizes")
+    plt.legend()
+    plt.show()
+
+def compare_model_sizes(model1_name, model2_name):
+    model1, model2 = AutoModel.from_pretrained(model1_name), AutoModel.from_pretrained(model2_name)
+    size1 = sum(t.numel() * t.element_size() for t in model1.parameters())
+    size2 = sum(t.numel() * t.element_size() for t in model2.parameters())
+    print(f"Model size - {model1_name}: {size1 / 1024 / 1024:.2f} MB, {model2_name}: {size2 / 1024 / 1024:.2f} MB")
+
+def main():
+    model1_name = input("Enter the name of the first model: ")
+    model2_name = input("Enter the name of the second model: ")
+    
+    print("\nComparing model architectures:")
+    compare_architectures(model1_name, model2_name)
+    
+    print("\nComparing activation functions:")
+    compare_activation_functions(model1_name, model2_name)
+    
+    print("\nComparing vocabulary sizes:")
+    compare_vocab_sizes(model1_name, model2_name)
+    
+    print("\nComparing parameter counts:")
+    compare_parameter_counts(model1_name, model2_name)
+    
+    print("\nComparing model sizes:")
+    compare_model_sizes(model1_name, model2_name)
+    
+    print("\nComparing inference speed (this might take a while):")
+    compare_inference_speed(model1_name, model2_name)
+    
+    print("\nVisualizing layer-wise hidden sizes:")
+    visualize_layer_sizes(model1_name, model2_name)
+
+if __name__ == "__main__":
+    main()
